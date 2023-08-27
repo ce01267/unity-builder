@@ -1,0 +1,46 @@
+name: Export and Push Unity Package
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  export-and-push:
+    name: Export Unity Project and Push to Cloned Repository
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Setup Unity
+      uses: game-ci/unity-setup@v2
+      with:
+        unity-version: '2020.3.10f1'
+
+    - name: Clone the target repository
+      run: |
+        git clone https://github.com/ce01267/unity.git cloned-repo
+
+    - name: Export as .unitypackage from current repository
+      run: |
+        /opt/unity/Editor/Unity \
+          -quit \
+          -batchmode \
+          -nographics \
+          -silent-crashes \
+          -logFile \
+          -projectPath $GITHUB_WORKSPACE \
+          -exportPackage "dependencies" $GITHUB_WORKSPACE/cloned-repo/target.unitypackage
+
+    - name: Push .unitypackage to cloned repository
+      run: |
+        cd cloned-repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add .
+        git commit -m "Add exported .unitypackage"
+        git push https://${{secrets.GITHUB_TOKEN}}@github.com/ce01267/unity.git
+
+    - name: Create Release
+      uses: gh cli/action@v1
+      with:
+        args: release create v0.1.0 cloned-repo/YourProjectName.unitypackage --title "Release v0.1.0" --notes "Release notes for v0.1.0"
